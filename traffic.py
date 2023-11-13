@@ -1,6 +1,9 @@
 import csv
 import collections
+import numpy as np
 import matplotlib.pyplot as plt
+from sklearn.metrics import homogeneity_score, homogeneity_completeness_v_measure
+from sklearn.cluster import KMeans
 
 def main():
     files = ['AnnualTrafficVolume.csv', 'AnnualTrafficVolume (1).csv', 'AnnualTrafficVolume (2).csv', 
@@ -11,9 +14,15 @@ def main():
         # station id, data, direction, 24 hr cols, formatted date
     raw_data = retrieve_data('master_traffic_data.csv')
 
-    # step 1: Is there clustering along the two stations?
-    plot_months(raw_data)
+    # Determining if there's clustering along the two stations / by month?
     
+    # visualizing the data
+    #plot_stations(raw_data)
+    # plot_months(raw_data)
+
+    # Try a k-means classification on hours
+    time_data, labels = create_hours_data(raw_data)
+    k_clustering(time_data, labels)    
 
 def compile_files(filenames):
     for f in filenames:
@@ -52,6 +61,29 @@ def plot_months(data):
         months.append(point[1][4:6])
         sums.append(sum([int(x) for x in point[3:27]]))
     plt.scatter(months, sums)
+    plt.show()
+
+def create_hours_data(data):
+    new_data, labels = [], []
+    for point in data:
+        for x in range(3, 27):
+            new_data.append(point[x])
+            labels.append(x-3)
+    return new_data, labels
+
+def k_clustering(time_data, labels):
+    krange = range(1, 25)
+    exps = {}
+    for k in krange:
+        exps[k] = {}
+        # various label comparisons
+        exps[k]['kmeans'] = km = KMeans(n_clusters=k,n_init='auto').fit(np.array(time_data).reshape(-1, 1))
+        hcv = homogeneity_completeness_v_measure(np.array(labels),km.labels_)
+        exps[k]['h'],exps[k]['c'],exps[k]['v'] = hcv
+    plt.plot(krange,[exps[k]['h'] for k in krange],label='h score')
+    plt.plot(krange,[exps[k]['c'] for k in krange],label='c score')
+    plt.plot(krange,[exps[k]['v'] for k in krange],label='v score')
+    plt.legend()
     plt.show()
 
 if __name__ == "__main__":
